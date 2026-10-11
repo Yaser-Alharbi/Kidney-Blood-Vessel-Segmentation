@@ -46,7 +46,7 @@
     <div class="buttons">
       <a class="btn primary" href="#problem">Read the story</a>
       <a class="btn" href="https://kidney-blood-vessel-segmentation.streamlit.app/">Open the live lab</a>
-      <a class="btn" href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation">Source code</a>
+      <a class="btn" href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation">Source code</a>
     </div>
 
     <div class="figrow three">
@@ -131,7 +131,7 @@
           <figure><img src="img/channel_e.webp" alt="Eosin-like channel" loading="lazy" width="384" height="384"><figcaption><strong>E channel.</strong> Membranes and stroma.</figcaption></figure>
           <figure><img src="img/macenko.webp" alt="Macenko-normalised tile" loading="lazy" width="384" height="384"><figcaption><strong>Macenko-normalised.</strong> Recoloured to the fixed reference stain.</figcaption></figure>
         </div>
-        <p class="small muted">Code: <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/data/transforms.py#L25">HED matrix</a> &middot; <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/data/transforms.py#L111">Macenko normalisation</a></p>
+        <p class="small muted">Code: <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/data/transforms.py#L25">HED matrix</a> &middot; <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/data/transforms.py#L111">Macenko normalisation</a></p>
       </div>
     </details>
   </div>
@@ -288,9 +288,9 @@
       <li><span class="what">U-Net with a ResNet-34 encoder</span>
         <span class="why">The standard architecture for medical segmentation. The encoder starts from ImageNet weights, which helps with only 270 training tiles.</span></li>
       <li><span class="what"><dfn class="term" data-term="loss" tabindex="0">Dice + BCE loss</dfn></span>
-        <span class="why">Vessels are a small share of pixels, so plain per-pixel loss would reward predicting &ldquo;no vessel&rdquo;. The Dice term matches the evaluation metric; the BCE term keeps gradients smooth early in training. <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/training/losses.py#L19">Code</a></span></li>
+        <span class="why">Vessels are a small share of pixels, so plain per-pixel loss would reward predicting &ldquo;no vessel&rdquo;. The Dice term matches the evaluation metric; the BCE term keeps gradients smooth early in training. <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/training/losses.py#L19">Code</a></span></li>
       <li><span class="what">AdamW, learning rate 0.0001, weight decay 0.0001, cosine schedule</span>
-        <span class="why">A conventional, well-behaved setup for fine-tuning a pretrained encoder; the learning rate decays smoothly to zero. <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/training/train.py#L327">Code</a></span></li>
+        <span class="why">A conventional, well-behaved setup for fine-tuning a pretrained encoder; the learning rate decays smoothly to zero. <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/training/train.py#L327">Code</a></span></li>
       <li><span class="what">Up to 30 epochs, early stop after 4</span>
         <span class="why">Training stops once validation Dice has not improved for 4 epochs, and the best epoch's weights are kept. This limits overfitting on a small training set.</span></li>
       <li><span class="what">Batch 16, tiles 512 &times; 512</span>
@@ -323,7 +323,7 @@
           <p>The tile is converted to optical density and split into H, E and residual channels by colour deconvolution. Each channel is multiplied by a random factor in 1 &plusmn; &sigma; and shifted by a random offset in &plusmn;&sigma;, then converted back to RGB. With &sigma; = 0.05, applied to 80.0% of training tiles.</p>
         </div></details>
         <details><summary>Details</summary><div class="body">
-          <p class="small">Matrix: Ruifrok &amp; Johnston (2001). <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/data/transforms.py#L59">HEDJitter</a> &middot; <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/data/transforms.py#L214">where the recipe sets &sigma; and p</a></p>
+          <p class="small">Matrix: Ruifrok &amp; Johnston (2001). <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/data/transforms.py#L59">HEDJitter</a> &middot; <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/data/transforms.py#L214">where the recipe sets &sigma; and p</a></p>
         </div></details>
       </div>
       <div class="card">
@@ -333,7 +333,7 @@
           <p>Background pixels are dropped and the rest are converted to optical density. The two main directions of variation (from an SVD) span a plane; the extreme angles in that plane give the tile's two stain vectors. Concentrations are rescaled so their upper percentile matches the reference, then recombined with the reference stain matrix. Degenerate tiles are returned unchanged.</p>
         </div></details>
         <details><summary>Details</summary><div class="body">
-          <p class="small">Method: Macenko et al. (2009). The reference stain matrix comes from H&amp;E, which is exactly what the second hypothesis questions for PAS. <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/data/transforms.py#L111">MacenkoNormalize</a></p>
+          <p class="small">Method: Macenko et al. (2009). The reference stain matrix comes from H&amp;E, which is exactly what the second hypothesis questions for PAS. <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/data/transforms.py#L111">MacenkoNormalize</a></p>
         </div></details>
       </div>
       <div class="card">
@@ -355,7 +355,7 @@
           </svg>
           <p>Skip connections carry fine detail from the encoder straight to the decoder, which matters for thin structures like vessels. The output is one score per pixel; a sigmoid above 0.5 means &ldquo;vessel&rdquo;.</p>
         </div></details>
-        <details><summary>Details</summary><div class="body"><p class="small">segmentation-models-pytorch <code>Unet(resnet34)</code>, ImageNet weights, single output channel. <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/models/__init__.py#L16">Code</a></p></div></details>
+        <details><summary>Details</summary><div class="body"><p class="small">segmentation-models-pytorch <code>Unet(resnet34)</code>, ImageNet weights, single output channel. <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/models/__init__.py#L16">Code</a></p></div></details>
       </div>
       <div class="card">
         <h3>Bootstrap CI and Wilcoxon test</h3>
@@ -364,7 +364,7 @@
           <p><strong><dfn class="term" data-term="bootstrap" tabindex="0">Bootstrap</dfn>:</strong> resample the scores with replacement 2,000 times and take the middle 95% of the resampled means as a <dfn class="term" data-term="ci" tabindex="0">confidence interval</dfn>.</p>
           <p><strong>Wilcoxon signed-rank:</strong> pair each stain-jitter run with the baseline run that used the same seed, then ask whether the differences lean positive. It is <em>paired</em> because both runs share the same random start, <em>non-parametric</em> because Dice is not normally distributed, and <em>one-sided</em> because each hypothesis predicts a direction.</p>
         </div></details>
-        <details><summary>Details</summary><div class="body"><p class="small"><a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/training/evaluate.py#L64">bootstrap_dice</a> &middot; <a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/blob/main/src/training/evaluate.py#L90">paired_wilcoxon_dice</a> (scipy)</p></div></details>
+        <details><summary>Details</summary><div class="body"><p class="small"><a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/training/evaluate.py#L64">bootstrap_dice</a> &middot; <a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/blob/main/src/training/evaluate.py#L90">paired_wilcoxon_dice</a> (scipy)</p></div></details>
       </div>
     </div>
   </div>
@@ -589,7 +589,7 @@
 <footer>
   <div class="wrap">
     <span>Blood Vessel Segmentation in Kidney Histology. Data: HuBMAP <em>Hacking the Human Vasculature</em> (Kaggle).</span>
-    <span><a href="https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation">Source code</a> &middot; <a href="https://huggingface.co/Yaser-Alharbi/vessel-stain-lab-weights">Model weights</a> &middot; <a href="https://kidney-blood-vessel-segmentation.streamlit.app/">Live lab</a></span>
+    <span><a href="https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation">Source code</a> &middot; <a href="https://huggingface.co/Yaser-Alharbi/vessel-stain-lab-weights">Model weights</a> &middot; <a href="https://kidney-blood-vessel-segmentation.streamlit.app/">Live lab</a></span>
   </div>
 </footer>
 

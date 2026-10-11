@@ -1,10 +1,10 @@
 # Blood Vessel Segmentation in Kidney Histology
 
-[![Lint](https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/actions/workflows/lint.yml/badge.svg)](https://github.com/Yaser-Alharbi/kidney-blood-vessel-segmentation/actions/workflows/lint.yml)
+[![Lint](https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/actions/workflows/lint.yml/badge.svg)](https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/actions/workflows/lint.yml)
 
 **Teaching AI to find blood vessels in kidney tissue, even when the stain colour changes from lab to lab.**
 
-- **Story site** (methods, every number explained): https://yaser-alharbi.github.io/kidney-blood-vessel-segmentation/
+- **Story site** (methods, every number explained): https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/
 - **Live lab** (run the models in your browser): https://kidney-blood-vessel-segmentation.streamlit.app/
 - **Model weights**: https://huggingface.co/Yaser-Alharbi/vessel-stain-lab-weights
 
@@ -25,7 +25,7 @@ Test set: 681 tiles from 2 held-out slides. Mean Dice across 20 runs per recipe,
 - **Macenko normalisation with an H&E reference hurts on PAS-stained tissue.**
 - **The two do not combine additively**, unlike the H&E result of Tellez et al. (2019).
 
-Test labels are auto-generated and noisy, so these scores compare recipes with each other; they are not absolute accuracy. The [story site](https://yaser-alharbi.github.io/kidney-blood-vessel-segmentation/) explains every number, the statistics and the limitations.
+Test labels are auto-generated and noisy, so these scores compare recipes with each other; they are not absolute accuracy. The [story site](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/) explains every number, the statistics and the limitations.
 
 ## Run it
 
