@@ -141,3 +141,8 @@ results/*
 results_v2/*
 !results/.gitkeep
 
+
+# Competition data
+/demo_assets/tiles/
+/demo_assets/masks/
+/docs/img/
