@@ -4,7 +4,7 @@ Arms (control + 3 stain-aware variants):
     rgb_aug           control
     hed_only          ablation: HED jitter on train, no Macenko
     macenko_only      ablation: Macenko stain norm on train+eval, no HED
-    full_stain_aware  HED jitter on train + Macenko on eval (combined)
+    full_stain_aware  Macenko + HED jitter on train, Macenko on eval (combined)
 
 Seeds default to [42, 1, 2]; the caller may pass any list (the v2
 rerun passes 20 from config). Outer loop is seeds, inner is arms.

@@ -32,16 +32,18 @@ _RGB_FROM_HED = np.array(
 )
 _HED_FROM_RGB = np.linalg.inv(_RGB_FROM_HED)
 
-# Macenko (2009) reference: stain matrix + 99th-pct concentrations.
+# PAS reference: stain matrix + 99th-pct concentrations, per-entry median
+# over the v2 train-WSI tiles (`python -m scripts.fit_macenko_ref`).
+# Replaces the H&E reference from Macenko (2009) the v2 models used.
 _MACENKO_REF_STAIN = np.array(
     [
-        [0.5626, 0.2159],
-        [0.7201, 0.8012],
-        [0.4062, 0.5581],
+        [0.5330, 0.2392],
+        [0.7490, 0.9477],
+        [0.3936, 0.2114],
     ],
     dtype=np.float64,
 )
-_MACENKO_REF_MAX_C = np.array([1.9705, 1.0308], dtype=np.float64)
+_MACENKO_REF_MAX_C = np.array([0.6946, 0.6840], dtype=np.float64)
 _MACENKO_IO = 240.0  # transmitted-light baseline
 
 
@@ -121,8 +123,8 @@ def _macenko_stain_matrix(
     Singular vectors are only defined up to sign, so without `fix_sign` the
     angles (and the extremes picked) can change with pixel order. With
     `fix_sign=True` each vector is multiplied by the sign of its component
-    sum first. `MacenkoNormalize` uses `fix_sign=False`, the behaviour the
-    v2 models were trained with.
+    sum first. `MacenkoNormalize` uses `fix_sign=True`; the v2 models
+    were trained with `fix_sign=False`.
     """
     fg = od[(od > beta).any(axis=1)]
     if fg.shape[0] < 50:
@@ -215,7 +217,7 @@ class MacenkoNormalize(ImageOnlyTransform):
         flat = img.reshape(-1, 3)
         od = _rgb_to_od(flat)
 
-        stain = _macenko_stain_matrix(od, self.beta, self.alpha_pct)
+        stain = _macenko_stain_matrix(od, self.beta, self.alpha_pct, fix_sign=True)
         if stain is None:
             return img
 
@@ -319,12 +321,18 @@ def get_macenko_only_transforms(
 def get_full_stain_aware_transforms(
     image_size: int = 512, train: bool = True
 ) -> _MaskedCompose:
-    """HED jitter on train + Macenko on eval (combined arm)."""
+    """Combined arm: Macenko then HED jitter on train, Macenko on eval.
+
+    Jitter runs after normalisation so it perturbs around the reference
+    stain (the other order would let Macenko undo it), and train and eval
+    inputs share the normalised distribution.
+    """
     if train:
         ops = [
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
             A.RandomRotate90(p=0.5),
+            MacenkoNormalize(p=1.0),
             HEDJitter(sigma=0.05, p=0.8),
             A.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
             ToTensorV2(),
