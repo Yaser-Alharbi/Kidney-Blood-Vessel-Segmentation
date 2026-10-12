@@ -7,7 +7,7 @@ Each builder returns an Albumentations-shaped callable:
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import albumentations as A
 import numpy as np
@@ -108,6 +108,95 @@ def hed_channels(img: np.ndarray) -> Dict[str, np.ndarray]:
     return {"H": hed[:, 0].reshape(h, w), "E": hed[:, 1].reshape(h, w)}
 
 
+def _macenko_stain_matrix(
+    od: np.ndarray, beta: float, alpha_pct: float, fix_sign: bool = False
+) -> Optional[np.ndarray]:
+    """Estimate a tile's 3x2 stain matrix from its optical densities [N, 3].
+
+    Pixels with no channel above `beta` are dropped as background; the
+    stain vectors are the `alpha_pct` angular extremes of the foreground in
+    the plane of the top two right-singular vectors. Returns None when the
+    tile has too little tissue or the SVD fails.
+
+    Singular vectors are only defined up to sign, so without `fix_sign` the
+    angles (and the extremes picked) can change with pixel order. With
+    `fix_sign=True` each vector is multiplied by the sign of its component
+    sum first. `MacenkoNormalize` uses `fix_sign=False`, the behaviour the
+    v2 models were trained with.
+    """
+    fg = od[(od > beta).any(axis=1)]
+    if fg.shape[0] < 50:
+        return None
+
+    try:
+        top = np.linalg.svd(
+            fg - fg.mean(axis=0, keepdims=True), full_matrices=False
+        )[2][:2]
+    except np.linalg.LinAlgError:
+        return None
+    if fix_sign:
+        top = top * np.where(top.sum(axis=1, keepdims=True) < 0, -1.0, 1.0)
+    plane = top.T  # top-2 singular vectors as 3x2 basis
+
+    proj = fg @ plane
+    phi = np.arctan2(proj[:, 1], proj[:, 0])
+    lo, hi = np.percentile(phi, [alpha_pct, 100.0 - alpha_pct])
+    v_lo = plane @ np.array([np.cos(lo), np.sin(lo)])
+    v_hi = plane @ np.array([np.cos(hi), np.sin(hi)])
+
+    # H-like (more red-absorbing) stain in column 0
+    if v_lo[0] > v_hi[0]:
+        stain = np.column_stack([v_lo, v_hi])
+    else:
+        stain = np.column_stack([v_hi, v_lo])
+    return stain / (np.linalg.norm(stain, axis=0, keepdims=True) + 1e-8)
+
+
+def _synthetic_two_stain_tile(rng: np.random.Generator, size: int) -> np.ndarray:
+    """RGB uint8 tile from gamma-distributed H and E concentrations (no DAB)."""
+    conc_h = np.clip(rng.gamma(2, 0.25, (size, size)), 0, 2)
+    conc_e = np.clip(rng.gamma(2, 0.30, (size, size)), 0, 2)
+    od = np.stack([conc_h, conc_e, np.zeros_like(conc_h)], axis=-1) @ _RGB_FROM_HED
+    return np.clip(10.0 ** (-od) * _MACENKO_IO, 0, 255).astype(np.uint8)
+
+
+def _flips_and_rotations(rgb: np.ndarray) -> list:
+    """The seven non-identity flips/90-degree rotations of a tile."""
+    up = np.flipud(rgb)
+    return [up, np.fliplr(rgb), np.rot90(rgb, 1), np.rot90(rgb, 2), np.rot90(rgb, 3),
+            np.rot90(up, 1), np.rot90(up, 3)]
+
+
+def macenko_sign_check(
+    n_tiles: int = 20, size: int = 256, tol: float = 1e-3, seed: int = 1
+) -> Dict[str, int]:
+    """Count flip/rotation variants whose estimated stain matrix differs.
+
+    Synthetic two-stain tiles (gamma-distributed H and E concentrations
+    mixed with the Ruifrok matrix) are flipped and rotated seven ways.
+    Those moves only reorder pixels, so a stable estimator returns the same
+    stain matrix for every variant. A variant is inconsistent when any
+    entry differs from the original's by more than `tol`. Counted with and
+    without the sign fix in `_macenko_stain_matrix`, using the
+    `MacenkoNormalize` defaults (beta 0.15, alpha_pct 1).
+    """
+    def estimate(rgb: np.ndarray, fix: bool) -> np.ndarray:
+        od = _rgb_to_od(np.ascontiguousarray(rgb).reshape(-1, 3))
+        return _macenko_stain_matrix(od, 0.15, 1.0, fix_sign=fix)
+
+    rng = np.random.default_rng(seed)
+    counts = {"n_variants": 0, "inconsistent": 0, "inconsistent_fixed": 0}
+    for _ in range(n_tiles):
+        rgb = _synthetic_two_stain_tile(rng, size)
+        variants = _flips_and_rotations(rgb)
+        counts["n_variants"] += len(variants)
+        for key, fix in (("inconsistent", False), ("inconsistent_fixed", True)):
+            ref = estimate(rgb, fix)
+            counts[key] += sum(int(np.abs(estimate(v, fix) - ref).max() > tol)
+                               for v in variants)
+    return counts
+
+
 class MacenkoNormalize(ImageOnlyTransform):
     """Macenko stain normalization to a fixed reference (image only).
 
@@ -126,32 +215,9 @@ class MacenkoNormalize(ImageOnlyTransform):
         flat = img.reshape(-1, 3)
         od = _rgb_to_od(flat)
 
-        # drop near-white pixels (glass/background)
-        fg = od[(od > self.beta).any(axis=1)]
-        if fg.shape[0] < 50:
+        stain = _macenko_stain_matrix(od, self.beta, self.alpha_pct)
+        if stain is None:
             return img
-
-        try:
-            _, _, V = np.linalg.svd(
-                fg - fg.mean(axis=0, keepdims=True), full_matrices=False
-            )
-        except np.linalg.LinAlgError:
-            return img
-        plane = V[:2].T  # top-2 singular vectors as 3x2 basis
-
-        proj = fg @ plane
-        phi = np.arctan2(proj[:, 1], proj[:, 0])
-        lo, hi = np.percentile(phi, [self.alpha_pct, 100.0 - self.alpha_pct])
-        v_lo = plane @ np.array([np.cos(lo), np.sin(lo)])
-        v_hi = plane @ np.array([np.cos(hi), np.sin(hi)])
-
-        # H-like (more red-absorbing) stain in column 0
-        if v_lo[0] > v_hi[0]:
-            stain = np.column_stack([v_lo, v_hi])
-        else:
-            stain = np.column_stack([v_hi, v_lo])
-        norms = np.linalg.norm(stain, axis=0, keepdims=True)
-        stain = stain / (norms + 1e-8)
 
         try:
             conc, *_ = np.linalg.lstsq(stain, od.T, rcond=None)

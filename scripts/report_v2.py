@@ -21,14 +21,11 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 
 from src.training.evaluate import bootstrap_dice
+from src.training.paired_stats import N_BOOT, paired_stats, per_run_means
 from src.utils.paths import Config, load_config, project_root
 
 ARMS: Tuple[str, ...] = ("rgb_aug", "hed_only", "macenko_only", "full_stain_aware")
 BASE = "rgb_aug"
-
-
-def _run_tag(arm: str, seed: int) -> str:
-    return f"unet_resnet34_{arm}_seed{seed}"
 
 
 def _load_summary(cfg: Config) -> Dict[str, Any]:
@@ -45,76 +42,50 @@ def _load_summary(cfg: Config) -> Dict[str, Any]:
 
 def _collect(summary: Dict[str, Any]) -> Tuple[List[int], Dict[str, Dict[int, float]], int]:
     """Per-seed mean test Dice per arm, plus the shared test-tile count."""
-    seeds = [int(s) for s in summary.get("seeds", [])]
-    runs = summary.get("runs", {})
-    per_seed: Dict[str, Dict[int, float]] = {a: {} for a in ARMS}
-    tile_counts: set = set()
-
-    for arm in ARMS:
-        for seed in seeds:
-            run = runs.get(_run_tag(arm, seed))
-            if not run:
-                continue
-            vals = run.get("test_per_tile_dice") or []
-            if not vals:
-                continue
-            per_seed[arm][seed] = float(np.mean(vals))
-            tile_counts.add(len(vals))
-
-    if not tile_counts:
-        raise RuntimeError("no test per-tile Dice arrays found in the summary")
-    if len(tile_counts) > 1:
-        raise RuntimeError(
-            f"runs disagree on test-set size: {sorted(tile_counts)}. "
-            "Arms are not comparable; the summary mixes different test sets."
-        )
-    return seeds, per_seed, tile_counts.pop()
+    seeds, means, n_tiles = per_run_means(summary, ARMS, "test")
+    per_seed = {a: dict(zip(seeds, means[a].tolist())) for a in ARMS}
+    return seeds, per_seed, n_tiles
 
 
-def _stats(per_seed: Dict[str, Dict[int, float]], seeds: List[int]) -> Dict[str, Any]:
-    """Mean, CI over seeds, % change and Wilcoxon vs the control arm."""
-    from scipy.stats import wilcoxon
+def _stats(summary: Dict[str, Any], per_seed: Dict[str, Dict[int, float]]) -> Dict[str, Any]:
+    """Mean, CI over seeds, % change and paired comparison vs the control arm.
 
-    base_seeds = [s for s in seeds if s in per_seed[BASE]]
-    base_vals = np.array([per_seed[BASE][s] for s in base_seeds], dtype=np.float64)
-    base_mean = float(base_vals.mean()) if base_vals.size else float("nan")
+    The paired numbers (difference, CI, two-sided Wilcoxon, Holm) come from
+    `src.training.paired_stats`, the same helper the project site uses.
+    """
+    paired = paired_stats(summary, ARMS, BASE, "test")
+    base_mean = paired["arms"][BASE]["mean"]
 
     out: Dict[str, Any] = {}
     for arm in ARMS:
-        shared = [s for s in seeds if s in per_seed[arm] and s in per_seed[BASE]]
-        vals = np.array([per_seed[arm][s] for s in shared], dtype=np.float64)
-        if not vals.size:
-            continue
-
+        vals = np.array(paired["arms"][arm]["values"], dtype=np.float64)
         # CI over per-seed means, not over tiles: the claim is about
         # seed-to-seed reproducibility, so the seed is the sample unit.
-        ci = bootstrap_dice(vals, n_boot=10000, ci=0.95, seed=42)
+        ci = bootstrap_dice(vals, n_boot=N_BOOT, ci=0.95, seed=42)
 
         entry: Dict[str, Any] = {
             "n_seeds": int(vals.size),
             "mean": float(vals.mean()),
-            "std": float(vals.std(ddof=1)) if vals.size > 1 else float("nan"),
+            "std": paired["arms"][arm]["std"],
             "ci_lo": ci.lo,
             "ci_hi": ci.hi,
             "pct_change": (
-                float("nan") if arm == BASE or base_mean != base_mean or base_mean == 0
+                float("nan") if arm == BASE
                 else (float(vals.mean()) - base_mean) / base_mean * 100.0
             ),
         }
 
         if arm != BASE:
-            paired_base = np.array([per_seed[BASE][s] for s in shared], dtype=np.float64)
-            try:
-                res = wilcoxon(vals, paired_base, alternative="greater")
-                entry["wilcoxon_stat"] = float(res.statistic)
-                entry["wilcoxon_p"] = float(res.pvalue)
-            except ValueError:
-                entry["wilcoxon_stat"] = float("nan")
-                entry["wilcoxon_p"] = float("nan")
-            wins = [s for s in shared if per_seed[arm][s] > per_seed[BASE][s]]
+            comp = paired["vs_base"][arm]
+            entry.update({
+                "delta": comp["mean"], "delta_lo": comp["lo"], "delta_hi": comp["hi"],
+                "dz": comp["dz"], "wilcoxon_stat": comp["statistic"],
+                "wilcoxon_p": comp["p"], "wilcoxon_p_holm": comp["p_holm"],
+            })
+            wins = [s for s, v in per_seed[arm].items() if v > per_seed[BASE][s]]
             entry["wins"] = len(wins)
-            entry["losses"] = [s for s in shared if s not in wins]
-            entry["beats_base_every_seed"] = len(wins) == len(shared)
+            entry["losses"] = [s for s in per_seed[arm] if s not in wins]
+            entry["beats_base_every_seed"] = len(wins) == len(per_seed[arm])
         out[arm] = entry
     return out
 
@@ -184,10 +155,15 @@ def _markdown(
         )
     lines.append("")
 
-    lines.append(f"## Paired Wilcoxon across seeds (n={n_seeds}), arm > rgb_aug")
-    lines.append("")
-    lines.append("| arm | statistic | p (one-sided) | seeds won |")
-    lines.append("| --- | --- | --- | --- |")
+    lines += [
+        f"## Paired comparison with rgb_aug across seeds (n={n_seeds})",
+        "",
+        "Delta is the mean of per-seed paired differences, with a percentile-bootstrap "
+        "95% CI. Wilcoxon signed-rank is two-sided; p_Holm adjusts across the three arms.",
+        "",
+        "| arm | delta [95% CI] | d_z | statistic | p | p_Holm | seeds won |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
     for arm in ARMS:
         if arm == BASE:
             continue
@@ -195,8 +171,9 @@ def _markdown(
         if not e:
             continue
         lines.append(
-            f"| `{arm}` | {e['wilcoxon_stat']:.1f} | {e['wilcoxon_p']:.4g} | "
-            f"{e['wins']}/{e['n_seeds']} |"
+            f"| `{arm}` | {e['delta']:+.4f} [{e['delta_lo']:.4f}, {e['delta_hi']:.4f}] | "
+            f"{e['dz']:.2f} | {e['wilcoxon_stat']:.1f} | {e['wilcoxon_p']:.4g} | "
+            f"{e['wilcoxon_p_holm']:.4g} | {e['wins']}/{e['n_seeds']} |"
         )
     lines.append("")
 
@@ -224,7 +201,7 @@ def report(cfg: Config | None = None) -> Path:
         cfg = load_config(project_root() / "configs" / "rerun_v2.yaml")
     summary = _load_summary(cfg)
     seeds, per_seed, n_tiles = _collect(summary)
-    stats = _stats(per_seed, seeds)
+    stats = _stats(summary, per_seed)
 
     cfg.paths.results.mkdir(parents=True, exist_ok=True)
     csv_path = cfg.paths.results / "phase3_per_seed.csv"

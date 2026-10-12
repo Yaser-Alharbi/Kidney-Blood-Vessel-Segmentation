@@ -146,3 +146,6 @@ results_v2/*
 /demo_assets/tiles/
 /demo_assets/masks/
 /docs/img/
+
+# Local notes
+/TODO.md
