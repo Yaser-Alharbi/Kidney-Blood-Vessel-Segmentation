@@ -203,9 +203,10 @@ def _best(results: Dict) -> Dict[str, str]:
     return best
 
 
-def _figure_data(results: Dict) -> Dict[str, Any]:
+def _figure_data(results: Dict, seeds: List[int]) -> Dict[str, Any]:
     """Per-seed run means and difference CIs for Figure 2 (drawn by site.js)."""
     return {
+        "seeds": seeds,  # same order as each runs array (summary order)
         "runs": {s: {k: [round(v, 5) for v in a["values"]]
                      for k, a in results[s]["arms"].items()} for s in SPLITS},
         "ci": {s: {k: [round(c["lo"], 5), round(c["hi"], 5)]
@@ -241,7 +242,8 @@ def build_context(summary: Dict, arms: List[str], meta: Dict) -> Dict[str, Any]:
         "n_vessels": inspection["annotation_type_counts"]["blood_vessel"],
         "n_annotated": inspection["n_polygon_lines"], "coverage": coverage["mean"],
         "splits": meta["splits"], "hed": meta["hed"], "sign": meta["macenko_sign_check"],
-        "r": results, "best": _best(results), "fig": _figure_data(results),
+        "r": results, "best": _best(results),
+        "fig": _figure_data(results, [int(s) for s in summary["seeds"]]),
     }
 
 

@@ -40,8 +40,8 @@ ARM_BLURB: Dict[str, str] = {
                 "training, so the model sees many lab colours.",
     "macenko_only": "Recolours every tile to one fixed reference stain, "
                     "in training and at test time.",
-    "full_stain_aware": "Stain jitter while training, then recolours to the "
-                        "reference stain at test time.",
+    "full_stain_aware": "Recolours to the reference stain, then adds stain jitter "
+                        "while training; recolours at test time.",
 }
 
 # why each arm is in the study (story site)
@@ -51,8 +51,7 @@ ARM_ROLE: Dict[str, str] = {
     "hed_only": "First hypothesis. If the model sees many stain strengths in training, it "
                 "should cope better with slides it has never seen.",
     "macenko_only": "Second hypothesis. Recolouring everything to one reference removes "
-                    "colour differences, but the reference was designed for H&E, not "
-                    "the PAS stain used here.",
+                    "colour differences, using a reference fitted on this PAS data.",
     "full_stain_aware": "The additivity test. Tellez et al. (2019) found augmentation and "
                         "normalisation add up on H&E. Does that hold on PAS?",
 }
@@ -62,7 +61,8 @@ ARM_PIPELINE: Dict[str, Tuple[str, str]] = {
     "rgb_aug": ("flips + rot90 + brightness/contrast", "plain"),
     "hed_only": ("flips + rot90 + HEDJitter(sigma=0.05)", "plain"),
     "macenko_only": ("flips + rot90 + MacenkoNormalize", "MacenkoNormalize"),
-    "full_stain_aware": ("flips + rot90 + HEDJitter(sigma=0.05)", "MacenkoNormalize"),
+    "full_stain_aware": ("flips + rot90 + MacenkoNormalize + HEDJitter(sigma=0.05)",
+                         "MacenkoNormalize"),
 }
 
 GT_COLOR = "#19a974"

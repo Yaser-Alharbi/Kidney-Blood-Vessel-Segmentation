@@ -37,7 +37,7 @@
   <section class="col">
     <h2><span class="n">{{ sec.overview|label }}</span>Overview</h2>
     <p>Stain variation between slides and laboratories is a dominant source of domain shift in histopathology. This project isolates one variable, the treatment of stain colour, and measures its effect on cross-slide vessel segmentation using the HuBMAP <i>Hacking the Human Vasculature</i> dataset {{ cite("hubmap") }}. Four otherwise identical training regimes are compared: an RGB-augmentation baseline, HED stain augmentation {{ cite("ruifrok") }}, Macenko normalisation {{ cite("macenko") }}, and both combined, as studied on H&amp;E by Tellez et al. {{ cite("tellez") }}.</p>
-    <p>HED augmentation improved test Dice by <span class="num">{{ T.vs.hed.mean|signed }}</span> ({{ ci_level|pct(0) }} CI <span class="num">[{{ T.vs.hed.lo|f3 }}, {{ T.vs.hed.hi|f3 }}]</span>, Holm-adjusted <span class="num"><i>p</i> = {{ T.vs.hed.p_holm|pval }}</span>). Both Macenko conditions degraded performance, but a post-hoc audit of the normalisation code found an SVD sign ambiguity that corrupts stain-vector estimation on a subset of tiles (Section {{ sec.stain|label }}). The Macenko results are therefore reported as provisional.</p>
+    <p>HED augmentation improved test Dice by <span class="num">{{ T.vs.hed.mean|signed }}</span> ({{ ci_level|pct(0) }} CI <span class="num">[{{ T.vs.hed.lo|f3 }}, {{ T.vs.hed.hi|f3 }}]</span>, Holm-adjusted <span class="num"><i>p</i> = {{ T.vs.hed.p_holm|pval }}</span>). With a PAS-fitted reference, Macenko normalisation had no detectable effect on test Dice (<span class="num">{{ T.vs.mac.mean|signed }}</span>, CI <span class="num">[{{ T.vs.mac.lo|f3 }}, {{ T.vs.mac.hi|f3 }}]</span>), and the combined arm, trained on normalised inputs, gave a small gain that did not survive correction (<span class="num">{{ T.vs.full.mean|signed }}</span>, <span class="num"><i>p</i> = {{ T.vs.full.p_holm|pval }}</span>). On the expert-labelled validation slide, all three stain-aware arms improved on the baseline.</p>
   </section>
 
   <section class="col">
@@ -111,13 +111,13 @@
     <p class="pp-k">Arm</p>
     <h3>Macenko normalisation</h3>
     <p class="pp-f"><code>{{ arm_id.mac }}</code></p>
-    <p class="pp-d">Re-expresses every tile against a fixed reference stain matrix, at training and at evaluation. Tests whether removing stain variation helps. The reference is H&amp;E-derived, and the stain estimation is affected by the sign issue described in Section {{ sec.stain|label }}. Normalised evaluation tiles are cached, so the per-tile SVD runs once rather than every epoch.</p>
+    <p class="pp-d">Re-expresses every tile against a fixed reference stain matrix, at training and at evaluation. Tests whether removing stain variation helps. The reference is fitted on PAS: the per-entry median stain matrix over the {{ splits.train|n }} training-slide tiles, so validation and test never inform it. Normalised evaluation tiles are cached, so the per-tile SVD runs once rather than every epoch.</p>
   </template>
   <template id="node-a_full">
     <p class="pp-k">Arm</p>
     <h3>HED + Macenko</h3>
     <p class="pp-f"><code>{{ arm_id.full }}</code></p>
-    <p class="pp-d">HED jitter during training, Macenko normalisation at evaluation. Tests whether the two effects add, as reported on H&amp;E by Tellez et al. {{ cite("tellez") }}.</p>
+    <p class="pp-d">Macenko normalisation then HED jitter during training, Macenko normalisation at evaluation, so training and evaluation inputs share the normalised distribution. Tests whether the two effects add, as reported on H&amp;E by Tellez et al. {{ cite("tellez") }}.</p>
   </template>
   <template id="node-train">
     <p class="pp-k">Training</p>
@@ -142,11 +142,7 @@
   <section class="col">
     <h3>{{ sec.stain|label }} Stain transforms in optical-density space</h3>
     <p>Both stain transforms were implemented from first principles rather than taken from a library, so that their behaviour could be inspected directly and the same stain operation reused in the demo's stress test. RGB is converted to optical density, where stain contributions are additive, and projected onto stain axes with the Ruifrok–Johnston matrix {{ cite("ruifrok") }}. HED augmentation then perturbs each stain channel with a multiplicative and an additive term drawn from <span class="num">U(−σ, σ)</span>, with <span class="num">σ = {{ hed.sigma|num }}</span>. Working in this space means the perturbation mimics a change in stain uptake rather than an arbitrary colour shift.</p>
-    <p>Macenko normalisation {{ cite("macenko") }} estimates each tile's two stain vectors from the plane of the top two singular vectors of its foreground optical densities, takes the robust angular extremes in that plane, and re-expresses the tile's concentrations against a fixed reference stain matrix. Tiles with too little tissue to estimate stains are passed through unchanged rather than halting a run.</p>
-    <div class="note">
-      <span class="lbl">Audit finding</span>
-      <p>Singular vectors are defined only up to sign, and the sign returned depends on pixel order. Stain angles are measured in that basis, so a sign flip moves the angular distribution across the ±π branch cut and the percentile extremes select the wrong stain directions. This is the likely cause of flipped or rotated copies of the same tile being normalised to different colours. On synthetic two-stain tiles, {{ sign.inconsistent|n }} of {{ sign.n_variants|n }} flip and rotation variants produced different stain matrices; fixing the sign of each singular vector reduces this to {{ sign.inconsistent_fixed|n }}.</p>
-    </div>
+    <p>Macenko normalisation {{ cite("macenko") }} estimates each tile's two stain vectors from the plane of the top two singular vectors of its foreground optical densities (each sign-fixed, so the estimate does not depend on pixel order), takes the robust angular extremes in that plane, and re-expresses the tile's concentrations against a fixed reference stain matrix, fitted on PAS as the per-entry median over the {{ splits.train|n }} training-slide tiles. Tiles with too little tissue to estimate stains are passed through unchanged rather than halting a run.</p>
   </section>
 
   <section class="col">
@@ -160,7 +156,7 @@
         <tr><td>{{ sw("base") }}Baseline <code>{{ arm_id.base }}</code></td><td class="l">brightness / contrast</td><td class="l">none</td></tr>
         <tr><td>{{ sw("hed") }}HED <code>{{ arm_id.hed }}</code></td><td class="l">HED jitter, <i>p</i> = {{ hed.p|num }}</td><td class="l">none</td></tr>
         <tr><td>{{ sw("mac") }}Macenko <code>{{ arm_id.mac }}</code></td><td class="l">Macenko</td><td class="l">Macenko</td></tr>
-        <tr><td>{{ sw("full") }}HED + Macenko <code>{{ arm_id.full }}</code></td><td class="l">HED jitter, <i>p</i> = {{ hed.p|num }}</td><td class="l">Macenko</td></tr>
+        <tr><td>{{ sw("full") }}HED + Macenko <code>{{ arm_id.full }}</code></td><td class="l">Macenko, then HED jitter, <i>p</i> = {{ hed.p|num }}</td><td class="l">Macenko</td></tr>
       </tbody>
     </table>
   </div>
@@ -184,7 +180,7 @@
   </section>
 
   <figure class="wide">
-    <p class="cap"><b>Table {{ sec.table_results|label }}.</b> Dice by arm, mean ± s.d. across seeds. Δ: mean paired difference from the baseline with bootstrap {{ ci_level|pct(0) }} CI. <i>p</i>: two-sided Wilcoxon signed-rank, Holm-adjusted. Test: {{ T.n_tiles|n }} tiles from two held-out slides with model-generated labels. Validation: {{ V.n_tiles|n }} tiles from one expert-annotated slide, also used for checkpoint selection. <span class="dag">†</span> Affected by the Macenko sign ambiguity (Section {{ sec.stain|label }}).</p>
+    <p class="cap"><b>Table {{ sec.table_results|label }}.</b> Dice by arm, mean ± s.d. across seeds. Δ: mean paired difference from the baseline with bootstrap {{ ci_level|pct(0) }} CI. <i>p</i>: two-sided Wilcoxon signed-rank, Holm-adjusted. Test: {{ T.n_tiles|n }} tiles from two held-out slides with model-generated labels. Validation: {{ V.n_tiles|n }} tiles from one expert-annotated slide, also used for checkpoint selection.</p>
     <div class="scroll">
       <table class="res">
         <thead>
@@ -204,9 +200,9 @@
             <td{{ bold("test_dice", "base") }}>{{ sd(T.arms.base) }}</td><td>n/a</td><td>n/a</td><td>n/a</td>
             <td{{ bold("val_dice", "base") }}>{{ sd(V.arms.base) }}</td><td>n/a</td>
           </tr>
-          {% for k, name, dag in [("hed", "HED", false), ("mac", "Macenko", true), ("full", "HED + Macenko", true)] %}
+          {% for k, name in [("hed", "HED"), ("mac", "Macenko"), ("full", "HED + Macenko")] %}
           <tr>
-            <td>{{ sw(k) }}{{ name }}{% if dag %} <span class="dag">†</span>{% endif %}</td>
+            <td>{{ sw(k) }}{{ name }}</td>
             <td{{ bold("test_dice", k) }}>{{ sd(T.arms[k]) }}</td><td{{ bold("test_delta", k) }}>{{ dci(T.vs[k]) }}</td><td>{{ T.vs[k].improved|n }}/{{ T.vs[k].n|n }}</td><td>{{ T.vs[k].p_holm|pval }}</td>
             <td{{ bold("val_dice", k) }}>{{ sd(V.arms[k]) }}</td><td{{ bold("val_delta", k) }}>{{ dci(V.vs[k]) }}</td>
           </tr>
@@ -217,9 +213,9 @@
   </figure>
 
   <section class="col">
-    <p><b>HED augmentation.</b> The improvement was consistent across seeds ({{ T.vs.hed.improved|n }} of {{ T.vs.hed.n|n }}, <span class="num">d<sub>z</sub> = {{ T.vs.hed.dz|f2 }}</span>) and replicated in direction on the validation slide (<span class="num">{{ dci(V.vs.hed) }}</span>), where it did not survive correction (<span class="num"><i>p</i><sub>Holm</sub> = {{ V.vs.hed.p_holm|pval }}</span>). The seed-to-seed spread on validation also halved (s.d. <span class="num">{{ V.arms.hed.std|f3 }}</span> vs <span class="num">{{ V.arms.base.std|f3 }}</span>), consistent with stain augmentation stabilising training as well as shifting its mean.</p>
-    <p><b>Macenko normalisation.</b> Both normalised arms performed worse than the baseline on test and validation. Two explanations remain open: the reference stain matrix is derived from H&amp;E rather than PAS, and the sign ambiguity in Section {{ sec.stain|label }} assigns incorrect stain vectors to a subset of tiles. The second is an implementation defect, so these effects should not be attributed to the method until the arms are rerun with the corrected transform.</p>
-    <p><b>Additivity.</b> The interaction contrast was <span class="num">{{ dci(T.interaction) }}</span> on test, so the combined arm fell well below the sum of its components, in contrast to the additive gains reported on H&amp;E {{ cite("tellez") }}. Beyond the defect above, the combined arm is the only one evaluated on a colour distribution (normalised) that it never saw during training (jittered, unnormalised).</p>
+    <p><b>HED augmentation.</b> The improvement was consistent across seeds ({{ T.vs.hed.improved|n }} of {{ T.vs.hed.n|n }}, <span class="num">d<sub>z</sub> = {{ T.vs.hed.dz|f2 }}</span>) and replicated on the validation slide (<span class="num">{{ dci(V.vs.hed) }}</span>, <span class="num"><i>p</i><sub>Holm</sub> = {{ V.vs.hed.p_holm|pval }}</span>). The seed-to-seed spread on validation also halved (s.d. <span class="num">{{ V.arms.hed.std|f3 }}</span> vs <span class="num">{{ V.arms.base.std|f3 }}</span>), consistent with stain augmentation stabilising training as well as shifting its mean.</p>
+    <p><b>Macenko normalisation.</b> Normalisation had no detectable effect on test Dice (<span class="num">{{ dci(T.vs.mac) }}</span>, {{ T.vs.mac.improved|n }} of {{ T.vs.mac.n|n }} seeds, <span class="num"><i>p</i><sub>Holm</sub> = {{ T.vs.mac.p_holm|pval }}</span>) and improved validation Dice (<span class="num">{{ dci(V.vs.mac) }}</span>, <span class="num"><i>p</i><sub>Holm</sub> = {{ V.vs.mac.p_holm|pval }}</span>).</p>
+    <p><b>Additivity.</b> The interaction contrast was <span class="num">{{ dci(T.interaction) }}</span> on test and <span class="num">{{ dci(V.interaction) }}</span> on validation. Both intervals include zero, so there is no evidence that the two effects fail to add, consistent with the result reported on H&amp;E {{ cite("tellez") }}. The combined arm, trained and evaluated on normalised inputs, was the strongest arm on validation (<span class="num">{{ dci(V.vs.full) }}</span>, <span class="num"><i>p</i><sub>Holm</sub> = {{ V.vs.full.p_holm|pval }}</span>); its test gain (<span class="num">{{ dci(T.vs.full) }}</span>) did not survive correction (<span class="num"><i>p</i><sub>Holm</sub> = {{ T.vs.full.p_holm|pval }}</span>).</p>
   </section>
 
   <figure class="wide">
@@ -236,7 +232,8 @@
       <li>Training uses a single slide. Stain diversity in training is the quantity under study, so this is the main constraint on generalisation.</li>
       <li>Test labels are model-generated. Dice on test supports comparisons between arms, not estimates of absolute accuracy.</li>
       <li>Validation Dice also selects the checkpoint, so validation estimates are optimistically biased.</li>
-      <li>Next: rerun both Macenko arms with the sign fix, add a PAS-fitted reference matrix, and train the combined arm on normalised inputs so that its training and evaluation distributions match.</li>
+      <li>The PAS reference is fitted on the single training slide, so it inherits that slide's stain.</li>
+      <li>Next: train on more than one slide, and fit the reference stain matrix across slides.</li>
     </ul>
 
     <h2>References</h2>

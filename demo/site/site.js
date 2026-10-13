@@ -40,8 +40,8 @@
   // Figure 2: per-seed paired differences from the baseline, mean tick and CI bar.
   const src = document.getElementById("fig-data"); if (!src) return;
   const FIG = JSON.parse(src.textContent);
-  const rows = [["hed", "HED", "--c-hed"], ["mac", "Macenko †", "--c-mac"],
-                ["full", "HED + Macenko †", "--c-full"]];
+  const rows = [["hed", "HED", "--c-hed"], ["mac", "Macenko", "--c-mac"],
+                ["full", "HED + Macenko", "--c-full"]];
   const NS = "http://www.w3.org/2000/svg";
   const W = 460, H = 214, L = 118, Rm = 16, T = 10, B = 40, x0 = -0.16, x1 = 0.14;
   const sx = v => L + (v - x0) / (x1 - x0) * (W - L - Rm);
@@ -53,6 +53,24 @@
     p.appendChild(e); return e;
   };
   const css = getComputedStyle(document.documentElement);
+  const fmt = (v, sign) => (v < 0 ? "−" : sign && v > 0 ? "+" : "") + Math.abs(v).toFixed(3);
+
+  // Hover/tap tooltip: one box per panel, positioned over the active point.
+  let active = null;
+  const hideTip = () => {
+    if (!active) return;
+    active.pt.classList.remove("on"); active.tip.classList.remove("on"); active = null;
+  };
+  const showTip = (pt, tip, html) => {
+    hideTip();
+    tip.innerHTML = html; tip.classList.add("on"); pt.classList.add("on");
+    const box = tip.parentNode.getBoundingClientRect(), r = pt.getBoundingClientRect();
+    const half = tip.offsetWidth / 2;
+    const x = Math.min(Math.max(r.left + r.width / 2 - box.left, half), box.width - half);
+    tip.style.left = x + "px"; tip.style.top = (r.top - box.top) + "px";
+    active = { pt, tip };
+  };
+  document.addEventListener("click", e => { if (!e.target.closest("circle.pt")) hideTip(); });
 
   function draw(svg) {
     const split = svg.dataset.split, runs = FIG.runs[split];
@@ -67,21 +85,33 @@
     el(svg, "text", { x: L + (W - L - Rm) / 2, y: H - 6, "text-anchor": "middle" },
        "Δ Dice vs baseline (same seed)");
     const ink = css.getPropertyValue("--ink").trim();
+    const tip = document.createElement("div");
+    tip.className = "fig-tip"; tip.setAttribute("role", "status");
+    svg.parentNode.appendChild(tip);
     rows.forEach(([k, name, c], i) => {
       const cy = T + rowH * (i + 0.5);
       el(svg, "text", { x: L - 10, y: cy + 4, "text-anchor": "end", class: "lab" }, name);
       const col = css.getPropertyValue(c).trim();
-      const d = runs[k].map((v, j) => v - runs.base[j]).sort((a, b) => a - b);
+      const d = runs[k].map((v, j) => ({ v: v - runs.base[j], arm: v, base: runs.base[j],
+                                         seed: FIG.seeds[j] }))
+                       .sort((a, b) => a.v - b.v);
       // deterministic dodge: points within 4.5px stack alternately above/below
       const placed = [];
-      d.forEach(v => {
-        const x = sx(v); let n = 0;
-        for (const p of placed) if (Math.abs(p - x) < 4.5) n++;
+      d.forEach(p => {
+        const x = sx(p.v); let n = 0;
+        for (const q of placed) if (Math.abs(q - x) < 4.5) n++;
         placed.push(x);
         const off = n === 0 ? 0 : (n % 2 ? -1 : 1) * Math.ceil(n / 2) * 4.6;
-        el(svg, "circle", { cx: x, cy: cy - 9 + off, r: 3, fill: col, "fill-opacity": 0.8 });
+        const pt = el(svg, "circle", { cx: x, cy: cy - 9 + off, r: 3, fill: col,
+                                       "fill-opacity": 0.8, class: "pt" });
+        const html = `<b>Seed ${p.seed}</b><br>Δ Dice <b>${fmt(p.v, true)}</b><br>`
+                   + `<span class="k">${name}</span> ${fmt(p.arm)} · `
+                   + `<span class="k">Baseline</span> ${fmt(p.base)}`;
+        pt.addEventListener("mouseenter", () => showTip(pt, tip, html));
+        pt.addEventListener("mouseleave", hideTip);
+        pt.addEventListener("click", () => showTip(pt, tip, html));
       });
-      const m = d.reduce((a, b) => a + b, 0) / d.length, [lo, hi] = FIG.ci[split][k];
+      const m = d.reduce((a, b) => a + b.v, 0) / d.length, [lo, hi] = FIG.ci[split][k];
       const by = cy + 13;
       el(svg, "line", { x1: sx(lo), x2: sx(hi), y1: by, y2: by, stroke: ink, "stroke-width": 2 });
       el(svg, "line", { x1: sx(m), x2: sx(m), y1: by - 5, y2: by + 5, stroke: ink, "stroke-width": 2 });

@@ -25,7 +25,7 @@
   <section class="col">
     <h2><span class="n">1</span>Overview</h2>
     <p>Stain variation between slides and laboratories is a dominant source of domain shift in histopathology. This project isolates one variable, the treatment of stain colour, and measures its effect on cross-slide vessel segmentation using the HuBMAP <i>Hacking the Human Vasculature</i> dataset <a class="cite" href="#ref-4" data-ref="4" aria-label="Reference 4">[4]</a>. Four otherwise identical training regimes are compared: an RGB-augmentation baseline, HED stain augmentation <a class="cite" href="#ref-1" data-ref="1" aria-label="Reference 1">[1]</a>, Macenko normalisation <a class="cite" href="#ref-2" data-ref="2" aria-label="Reference 2">[2]</a>, and both combined, as studied on H&amp;E by Tellez et al. <a class="cite" href="#ref-3" data-ref="3" aria-label="Reference 3">[3]</a>.</p>
-    <p>HED augmentation improved test Dice by <span class="num">+0.025</span> (95% CI <span class="num">[0.009, 0.041]</span>, Holm-adjusted <span class="num"><i>p</i> = 0.004</span>). Both Macenko conditions degraded performance, but a post-hoc audit of the normalisation code found an SVD sign ambiguity that corrupts stain-vector estimation on a subset of tiles (Section 3.2). The Macenko results are therefore reported as provisional.</p>
+    <p>HED augmentation improved test Dice by <span class="num">+0.025</span> (95% CI <span class="num">[0.009, 0.041]</span>, Holm-adjusted <span class="num"><i>p</i> = 0.013</span>). With a PAS-fitted reference, Macenko normalisation had no detectable effect on test Dice (<span class="num">−0.008</span>, CI <span class="num">[−0.020, 0.005]</span>), and the combined arm, trained on normalised inputs, gave a small gain that did not survive correction (<span class="num">+0.012</span>, <span class="num"><i>p</i> = 0.15</span>). On the expert-labelled validation slide, all three stain-aware arms improved on the baseline.</p>
   </section>
 
   <section class="col">
@@ -97,13 +97,13 @@
     <p class="pp-k">Arm</p>
     <h3>Macenko normalisation</h3>
     <p class="pp-f"><code>macenko_only</code></p>
-    <p class="pp-d">Re-expresses every tile against a fixed reference stain matrix, at training and at evaluation. Tests whether removing stain variation helps. The reference is H&amp;E-derived, and the stain estimation is affected by the sign issue described in Section 3.2. Normalised evaluation tiles are cached, so the per-tile SVD runs once rather than every epoch.</p>
+    <p class="pp-d">Re-expresses every tile against a fixed reference stain matrix, at training and at evaluation. Tests whether removing stain variation helps. The reference is fitted on PAS: the per-entry median stain matrix over the 270 training-slide tiles, so validation and test never inform it. Normalised evaluation tiles are cached, so the per-tile SVD runs once rather than every epoch.</p>
   </template>
   <template id="node-a_full">
     <p class="pp-k">Arm</p>
     <h3>HED + Macenko</h3>
     <p class="pp-f"><code>full_stain_aware</code></p>
-    <p class="pp-d">HED jitter during training, Macenko normalisation at evaluation. Tests whether the two effects add, as reported on H&amp;E by Tellez et al. <a class="cite" href="#ref-3" data-ref="3" aria-label="Reference 3">[3]</a>.</p>
+    <p class="pp-d">Macenko normalisation then HED jitter during training, Macenko normalisation at evaluation, so training and evaluation inputs share the normalised distribution. Tests whether the two effects add, as reported on H&amp;E by Tellez et al. <a class="cite" href="#ref-3" data-ref="3" aria-label="Reference 3">[3]</a>.</p>
   </template>
   <template id="node-train">
     <p class="pp-k">Training</p>
@@ -128,11 +128,7 @@
   <section class="col">
     <h3>3.2 Stain transforms in optical-density space</h3>
     <p>Both stain transforms were implemented from first principles rather than taken from a library, so that their behaviour could be inspected directly and the same stain operation reused in the demo's stress test. RGB is converted to optical density, where stain contributions are additive, and projected onto stain axes with the Ruifrok–Johnston matrix <a class="cite" href="#ref-1" data-ref="1" aria-label="Reference 1">[1]</a>. HED augmentation then perturbs each stain channel with a multiplicative and an additive term drawn from <span class="num">U(−σ, σ)</span>, with <span class="num">σ = 0.05</span>. Working in this space means the perturbation mimics a change in stain uptake rather than an arbitrary colour shift.</p>
-    <p>Macenko normalisation <a class="cite" href="#ref-2" data-ref="2" aria-label="Reference 2">[2]</a> estimates each tile's two stain vectors from the plane of the top two singular vectors of its foreground optical densities, takes the robust angular extremes in that plane, and re-expresses the tile's concentrations against a fixed reference stain matrix. Tiles with too little tissue to estimate stains are passed through unchanged rather than halting a run.</p>
-    <div class="note">
-      <span class="lbl">Audit finding</span>
-      <p>Singular vectors are defined only up to sign, and the sign returned depends on pixel order. Stain angles are measured in that basis, so a sign flip moves the angular distribution across the ±π branch cut and the percentile extremes select the wrong stain directions. This is the likely cause of flipped or rotated copies of the same tile being normalised to different colours. On synthetic two-stain tiles, 52 of 140 flip and rotation variants produced different stain matrices; fixing the sign of each singular vector reduces this to 0.</p>
-    </div>
+    <p>Macenko normalisation <a class="cite" href="#ref-2" data-ref="2" aria-label="Reference 2">[2]</a> estimates each tile's two stain vectors from the plane of the top two singular vectors of its foreground optical densities (each sign-fixed, so the estimate does not depend on pixel order), takes the robust angular extremes in that plane, and re-expresses the tile's concentrations against a fixed reference stain matrix, fitted on PAS as the per-entry median over the 270 training-slide tiles. Tiles with too little tissue to estimate stains are passed through unchanged rather than halting a run.</p>
   </section>
 
   <section class="col">
@@ -146,7 +142,7 @@
         <tr><td><span class="sw" style="background:var(--c-base)"></span>Baseline <code>rgb_aug</code></td><td class="l">brightness / contrast</td><td class="l">none</td></tr>
         <tr><td><span class="sw" style="background:var(--c-hed)"></span>HED <code>hed_only</code></td><td class="l">HED jitter, <i>p</i> = 0.8</td><td class="l">none</td></tr>
         <tr><td><span class="sw" style="background:var(--c-mac)"></span>Macenko <code>macenko_only</code></td><td class="l">Macenko</td><td class="l">Macenko</td></tr>
-        <tr><td><span class="sw" style="background:var(--c-full)"></span>HED + Macenko <code>full_stain_aware</code></td><td class="l">HED jitter, <i>p</i> = 0.8</td><td class="l">Macenko</td></tr>
+        <tr><td><span class="sw" style="background:var(--c-full)"></span>HED + Macenko <code>full_stain_aware</code></td><td class="l">Macenko, then HED jitter, <i>p</i> = 0.8</td><td class="l">Macenko</td></tr>
       </tbody>
     </table>
   </div>
@@ -170,7 +166,7 @@
   </section>
 
   <figure class="wide">
-    <p class="cap"><b>Table 1.</b> Dice by arm, mean ± s.d. across seeds. Δ: mean paired difference from the baseline with bootstrap 95% CI. <i>p</i>: two-sided Wilcoxon signed-rank, Holm-adjusted. Test: 681 tiles from two held-out slides with model-generated labels. Validation: 152 tiles from one expert-annotated slide, also used for checkpoint selection. <span class="dag">†</span> Affected by the Macenko sign ambiguity (Section 3.2).</p>
+    <p class="cap"><b>Table 1.</b> Dice by arm, mean ± s.d. across seeds. Δ: mean paired difference from the baseline with bootstrap 95% CI. <i>p</i>: two-sided Wilcoxon signed-rank, Holm-adjusted. Test: 681 tiles from two held-out slides with model-generated labels. Validation: 152 tiles from one expert-annotated slide, also used for checkpoint selection.</p>
     <div class="scroll">
       <table class="res">
         <thead>
@@ -192,18 +188,18 @@
           </tr>
           <tr>
             <td><span class="sw" style="background:var(--c-hed)"></span>HED</td>
-            <td class="best">0.204 ± 0.023</td><td class="best">+0.025 [0.009, 0.041]</td><td>16/20</td><td>0.004</td>
-            <td class="best">0.231 ± 0.013</td><td class="best">+0.018 [0.004, 0.032]</td>
+            <td class="best">0.204 ± 0.023</td><td class="best">+0.025 [0.009, 0.041]</td><td>16/20</td><td>0.013</td>
+            <td>0.231 ± 0.013</td><td>+0.018 [0.004, 0.032]</td>
           </tr>
           <tr>
-            <td><span class="sw" style="background:var(--c-mac)"></span>Macenko <span class="dag">†</span></td>
-            <td>0.141 ± 0.023</td><td>−0.039 [−0.047, −0.029]</td><td>1/20</td><td>&lt; 10<sup>−4</sup></td>
-            <td>0.196 ± 0.021</td><td>−0.017 [−0.032, −0.004]</td>
+            <td><span class="sw" style="background:var(--c-mac)"></span>Macenko</td>
+            <td>0.172 ± 0.015</td><td>−0.008 [−0.020, 0.005]</td><td>8/20</td><td>0.20</td>
+            <td>0.232 ± 0.017</td><td>+0.019 [0.007, 0.031]</td>
           </tr>
           <tr>
-            <td><span class="sw" style="background:var(--c-full)"></span>HED + Macenko <span class="dag">†</span></td>
-            <td>0.089 ± 0.008</td><td>−0.090 [−0.102, −0.077]</td><td>0/20</td><td>&lt; 10<sup>−4</sup></td>
-            <td>0.146 ± 0.011</td><td>−0.067 [−0.077, −0.056]</td>
+            <td><span class="sw" style="background:var(--c-full)"></span>HED + Macenko</td>
+            <td>0.192 ± 0.016</td><td>+0.012 [0.001, 0.024]</td><td>13/20</td><td>0.15</td>
+            <td class="best">0.241 ± 0.015</td><td class="best">+0.028 [0.014, 0.042]</td>
           </tr>
         </tbody>
       </table>
@@ -211,9 +207,9 @@
   </figure>
 
   <section class="col">
-    <p><b>HED augmentation.</b> The improvement was consistent across seeds (16 of 20, <span class="num">d<sub>z</sub> = 0.66</span>) and replicated in direction on the validation slide (<span class="num">+0.018 [0.004, 0.032]</span>), where it did not survive correction (<span class="num"><i>p</i><sub>Holm</sub> = 0.066</span>). The seed-to-seed spread on validation also halved (s.d. <span class="num">0.013</span> vs <span class="num">0.028</span>), consistent with stain augmentation stabilising training as well as shifting its mean.</p>
-    <p><b>Macenko normalisation.</b> Both normalised arms performed worse than the baseline on test and validation. Two explanations remain open: the reference stain matrix is derived from H&amp;E rather than PAS, and the sign ambiguity in Section 3.2 assigns incorrect stain vectors to a subset of tiles. The second is an implementation defect, so these effects should not be attributed to the method until the arms are rerun with the corrected transform.</p>
-    <p><b>Additivity.</b> The interaction contrast was <span class="num">−0.076 [−0.090, −0.063]</span> on test, so the combined arm fell well below the sum of its components, in contrast to the additive gains reported on H&amp;E <a class="cite" href="#ref-3" data-ref="3" aria-label="Reference 3">[3]</a>. Beyond the defect above, the combined arm is the only one evaluated on a colour distribution (normalised) that it never saw during training (jittered, unnormalised).</p>
+    <p><b>HED augmentation.</b> The improvement was consistent across seeds (16 of 20, <span class="num">d<sub>z</sub> = 0.66</span>) and replicated on the validation slide (<span class="num">+0.018 [0.004, 0.032]</span>, <span class="num"><i>p</i><sub>Holm</sub> = 0.040</span>). The seed-to-seed spread on validation also halved (s.d. <span class="num">0.013</span> vs <span class="num">0.028</span>), consistent with stain augmentation stabilising training as well as shifting its mean.</p>
+    <p><b>Macenko normalisation.</b> Normalisation had no detectable effect on test Dice (<span class="num">−0.008 [−0.020, 0.005]</span>, 8 of 20 seeds, <span class="num"><i>p</i><sub>Holm</sub> = 0.20</span>) and improved validation Dice (<span class="num">+0.019 [0.007, 0.031]</span>, <span class="num"><i>p</i><sub>Holm</sub> = 0.015</span>).</p>
+    <p><b>Additivity.</b> The interaction contrast was <span class="num">−0.005 [−0.025, 0.014]</span> on test and <span class="num">−0.009 [−0.023, 0.006]</span> on validation. Both intervals include zero, so there is no evidence that the two effects fail to add, consistent with the result reported on H&amp;E <a class="cite" href="#ref-3" data-ref="3" aria-label="Reference 3">[3]</a>. The combined arm, trained and evaluated on normalised inputs, was the strongest arm on validation (<span class="num">+0.028 [0.014, 0.042]</span>, <span class="num"><i>p</i><sub>Holm</sub> = 0.005</span>); its test gain (<span class="num">+0.012 [0.001, 0.024]</span>) did not survive correction (<span class="num"><i>p</i><sub>Holm</sub> = 0.15</span>).</p>
   </section>
 
   <figure class="wide">
@@ -230,7 +226,8 @@
       <li>Training uses a single slide. Stain diversity in training is the quantity under study, so this is the main constraint on generalisation.</li>
       <li>Test labels are model-generated. Dice on test supports comparisons between arms, not estimates of absolute accuracy.</li>
       <li>Validation Dice also selects the checkpoint, so validation estimates are optimistically biased.</li>
-      <li>Next: rerun both Macenko arms with the sign fix, add a PAS-fitted reference matrix, and train the combined arm on normalised inputs so that its training and evaluation distributions match.</li>
+      <li>The PAS reference is fitted on the single training slide, so it inherits that slide's stain.</li>
+      <li>Next: train on more than one slide, and fit the reference stain matrix across slides.</li>
     </ul>
 
     <h2>References</h2>
@@ -244,7 +241,7 @@
 </article>
 </div>
 
-<script type="application/json" id="fig-data">{"ci": {"test": {"full": [-0.10182, -0.07708], "hed": [0.00938, 0.04148], "mac": [-0.04722, -0.02927]}, "val": {"full": [-0.07707, -0.05599], "hed": [0.00423, 0.03162], "mac": [-0.03181, -0.00387]}}, "runs": {"test": {"base": [0.16665, 0.22032, 0.17832, 0.15893, 0.17062, 0.17351, 0.18155, 0.17851, 0.1743, 0.2097, 0.1141, 0.19353, 0.17673, 0.18007, 0.20594, 0.13996, 0.16839, 0.20673, 0.20167, 0.19004], "full": [0.08628, 0.07357, 0.08528, 0.083, 0.10261, 0.10017, 0.08114, 0.09051, 0.09383, 0.08438, 0.10342, 0.08921, 0.10375, 0.07955, 0.0916, 0.08687, 0.08087, 0.09335, 0.08927, 0.08946], "hed": [0.19854, 0.19375, 0.18971, 0.19961, 0.22664, 0.20389, 0.2206, 0.22292, 0.1777, 0.23242, 0.24101, 0.23332, 0.21787, 0.18021, 0.20817, 0.21641, 0.16405, 0.18679, 0.16266, 0.2103], "mac": [0.10804, 0.17519, 0.12619, 0.1252, 0.14753, 0.1443, 0.12964, 0.15333, 0.13355, 0.144, 0.07812, 0.15537, 0.14246, 0.12108, 0.14092, 0.16972, 0.14036, 0.16713, 0.14667, 0.16371]}, "val": {"base": [0.20007, 0.21826, 0.21556, 0.20466, 0.21488, 0.23839, 0.2213, 0.18712, 0.19403, 0.24434, 0.15643, 0.17733, 0.26035, 0.22933, 0.23138, 0.16599, 0.20366, 0.24174, 0.24956, 0.20807], "full": [0.14947, 0.13259, 0.14267, 0.14593, 0.1449, 0.17608, 0.13833, 0.13899, 0.13922, 0.13981, 0.15162, 0.14059, 0.16394, 0.14492, 0.15665, 0.13625, 0.12961, 0.14393, 0.16129, 0.1474], "hed": [0.24365, 0.21244, 0.21502, 0.23424, 0.24266, 0.22877, 0.2242, 0.22438, 0.2343, 0.2306, 0.24384, 0.25352, 0.24478, 0.21353, 0.25237, 0.2212, 0.21627, 0.2162, 0.23404, 0.22942], "mac": [0.20661, 0.20696, 0.18553, 0.21671, 0.20217, 0.18904, 0.18561, 0.21765, 0.19497, 0.20216, 0.13145, 0.19889, 0.16615, 0.18577, 0.21577, 0.21109, 0.21431, 0.21576, 0.18929, 0.17683]}}}</script>
+<script type="application/json" id="fig-data">{"ci": {"test": {"full": [0.00097, 0.02419], "hed": [0.00938, 0.04148], "mac": [-0.02003, 0.00528]}, "val": {"full": [0.01381, 0.04198], "hed": [0.00423, 0.03162], "mac": [0.00666, 0.03148]}}, "runs": {"test": {"base": [0.16665, 0.22032, 0.17832, 0.15893, 0.17062, 0.17351, 0.18155, 0.17851, 0.1743, 0.2097, 0.1141, 0.19353, 0.17673, 0.18007, 0.20594, 0.13996, 0.16839, 0.20673, 0.20167, 0.19004], "full": [0.16937, 0.18288, 0.17195, 0.16385, 0.21785, 0.17777, 0.19769, 0.18733, 0.22776, 0.18832, 0.17839, 0.20847, 0.20649, 0.20143, 0.19561, 0.19292, 0.19084, 0.18916, 0.20109, 0.18839], "hed": [0.19854, 0.19375, 0.18971, 0.19961, 0.22664, 0.20389, 0.2206, 0.22292, 0.1777, 0.23242, 0.24101, 0.23332, 0.21787, 0.18021, 0.20817, 0.21641, 0.16405, 0.18679, 0.16266, 0.2103], "mac": [0.16493, 0.16966, 0.17566, 0.15883, 0.18025, 0.17902, 0.15247, 0.15028, 0.15879, 0.18926, 0.18259, 0.16127, 0.19115, 0.19428, 0.14146, 0.16685, 0.17085, 0.17804, 0.17479, 0.19193]}, "val": {"base": [0.20007, 0.21826, 0.21556, 0.20466, 0.21488, 0.23839, 0.2213, 0.18712, 0.19403, 0.24434, 0.15643, 0.17733, 0.26035, 0.22933, 0.23138, 0.16599, 0.20366, 0.24174, 0.24956, 0.20807], "full": [0.22683, 0.22574, 0.26094, 0.25174, 0.2488, 0.20271, 0.24932, 0.23336, 0.24234, 0.23917, 0.24155, 0.2328, 0.23145, 0.23051, 0.23311, 0.25628, 0.25319, 0.27356, 0.24867, 0.24227], "hed": [0.24365, 0.21244, 0.21502, 0.23424, 0.24266, 0.22877, 0.2242, 0.22438, 0.2343, 0.2306, 0.24384, 0.25352, 0.24478, 0.21353, 0.25237, 0.2212, 0.21627, 0.2162, 0.23404, 0.22942], "mac": [0.21394, 0.26123, 0.25386, 0.21957, 0.2511, 0.21008, 0.21195, 0.22818, 0.23498, 0.23694, 0.21236, 0.22081, 0.24166, 0.25845, 0.21245, 0.23033, 0.24323, 0.21501, 0.25096, 0.24133]}}, "seeds": [42, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}</script>
 <script src="site.js"></script>
 </body>
 </html>

@@ -18,12 +18,12 @@ Test set: 681 tiles from 2 held-out slides. Mean Dice across 20 runs per recipe,
 | --- | --- | --- | --- | --- | --- | --- |
 | Baseline (`rgb_aug`) | flips, rot90, brightness/contrast | none | 0.179 ± 0.024 | | | |
 | Stain jitter (`hed_only`) | flips, rot90, HED stain jitter | none | **0.204 ± 0.022** | +13.8% | 16 / 20 | 0.0021 |
-| Stain normalisation (`macenko_only`) | flips, rot90, Macenko | Macenko | 0.141 ± 0.022 | -21.6% | 1 / 20 | 1.00 |
-| Jitter + normalisation (`full_stain_aware`) | flips, rot90, HED stain jitter | Macenko | 0.089 ± 0.008 | -50.2% | 0 / 20 | 1.00 |
+| Stain normalisation (`macenko_only`) | flips, rot90, Macenko | Macenko | 0.172 ± 0.014 | -4.4% | 8 / 20 | 0.91 |
+| Jitter + normalisation (`full_stain_aware`) | flips, rot90, Macenko, HED stain jitter | Macenko | 0.192 ± 0.016 | +6.9% | 13 / 20 | 0.038 |
 
 - **Stain jitter helps** (supported on test and on the expert-labelled validation slide).
-- **Macenko normalisation with an H&E reference hurts on PAS-stained tissue.**
-- **The two do not combine additively**, unlike the H&E result of Tellez et al. (2019).
+- **Macenko normalisation with a PAS-fitted reference** makes no clear difference on test and helps on the validation slide.
+- **Jitter + normalisation** is the best recipe on the validation slide; its test gain is small and does not hold up after correcting for three comparisons (see the site).
 
 Test labels are auto-generated and noisy, so these scores compare recipes with each other; they are not absolute accuracy. The [story site](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/) explains every number, the statistics and the limitations.
 
