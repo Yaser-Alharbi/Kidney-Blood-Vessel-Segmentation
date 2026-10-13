@@ -47,8 +47,7 @@
       "id": "0067d5ad2250",
       "split": "val",
       "reasons": [
-        "Largest stain-jitter loss (where it hurts most)",
-        "Highest Dice std across runs (least consistent)"
+        "Largest stain-jitter loss (where it hurts most)"
       ]
     },
     {
@@ -66,7 +65,21 @@
       ]
     },
     {
-      "id": "43c6095181fd",
+      "id": "0f5b52a768e2",
+      "split": "val",
+      "reasons": [
+        "Lowest mean Dice (hardest tiles)"
+      ]
+    },
+    {
+      "id": "26abe884958b",
+      "split": "val",
+      "reasons": [
+        "Lowest mean Dice (hardest tiles)"
+      ]
+    },
+    {
+      "id": "5ab182e75656",
       "split": "val",
       "reasons": [
         "Lowest mean Dice (hardest tiles)"
@@ -80,28 +93,7 @@
       ]
     },
     {
-      "id": "327dcb16a7ef",
-      "split": "val",
-      "reasons": [
-        "Lowest mean Dice (hardest tiles)"
-      ]
-    },
-    {
-      "id": "3e7e6fa84e33",
-      "split": "val",
-      "reasons": [
-        "Lowest mean Dice (hardest tiles)"
-      ]
-    },
-    {
       "id": "911b753ffe47",
-      "split": "val",
-      "reasons": [
-        "Highest mean Dice (easiest tiles)"
-      ]
-    },
-    {
-      "id": "2a4cc81cc5d6",
       "split": "val",
       "reasons": [
         "Highest mean Dice (easiest tiles)"
@@ -122,7 +114,21 @@
       ]
     },
     {
+      "id": "2a4cc81cc5d6",
+      "split": "val",
+      "reasons": [
+        "Highest mean Dice (easiest tiles)"
+      ]
+    },
+    {
       "id": "611599949a53",
+      "split": "val",
+      "reasons": [
+        "Highest Dice std across runs (least consistent)"
+      ]
+    },
+    {
+      "id": "a3926b1211d3",
       "split": "val",
       "reasons": [
         "Highest Dice std across runs (least consistent)"
@@ -136,7 +142,7 @@
       ]
     },
     {
-      "id": "6ba7c5991bf9",
+      "id": "1423b40ad0dc",
       "split": "val",
       "reasons": [
         "Highest Dice std across runs (least consistent)"
@@ -174,8 +180,7 @@
       "id": "795b7a37fc4e",
       "split": "test",
       "reasons": [
-        "Largest stain-jitter loss (where it hurts most)",
-        "Highest Dice std across runs (least consistent)"
+        "Largest stain-jitter loss (where it hurts most)"
       ]
     },
     {
@@ -200,14 +205,14 @@
       ]
     },
     {
-      "id": "c35d853b0cd2",
+      "id": "7632e7605ef9",
       "split": "test",
       "reasons": [
         "Lowest mean Dice (hardest tiles)"
       ]
     },
     {
-      "id": "7632e7605ef9",
+      "id": "c35d853b0cd2",
       "split": "test",
       "reasons": [
         "Lowest mean Dice (hardest tiles)"
@@ -221,17 +226,10 @@
       ]
     },
     {
-      "id": "b3ee5e7bcf74",
+      "id": "989936714cf5",
       "split": "test",
       "reasons": [
         "Lowest mean Dice (hardest tiles)"
-      ]
-    },
-    {
-      "id": "b95327948c18",
-      "split": "test",
-      "reasons": [
-        "Highest mean Dice (easiest tiles)"
       ]
     },
     {
@@ -242,14 +240,21 @@
       ]
     },
     {
-      "id": "e868c30b2af7",
+      "id": "b95327948c18",
       "split": "test",
       "reasons": [
         "Highest mean Dice (easiest tiles)"
       ]
     },
     {
-      "id": "2000408010ab",
+      "id": "f64540767eee",
+      "split": "test",
+      "reasons": [
+        "Highest mean Dice (easiest tiles)"
+      ]
+    },
+    {
+      "id": "e6d32a960166",
       "split": "test",
       "reasons": [
         "Highest mean Dice (easiest tiles)"
@@ -263,7 +268,7 @@
       ]
     },
     {
-      "id": "64bdfb888ab0",
+      "id": "3b0d08f3e37a",
       "split": "test",
       "reasons": [
         "Highest Dice std across runs (least consistent)"
@@ -271,6 +276,13 @@
     },
     {
       "id": "dd4a8ba579c0",
+      "split": "test",
+      "reasons": [
+        "Highest Dice std across runs (least consistent)"
+      ]
+    },
+    {
+      "id": "2cb88bf3ed30",
       "split": "test",
       "reasons": [
         "Highest Dice std across runs (least consistent)"
