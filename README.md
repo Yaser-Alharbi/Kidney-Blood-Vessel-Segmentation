@@ -2,7 +2,7 @@
 
 [![Lint](https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/actions/workflows/lint.yml/badge.svg)](https://github.com/Yaser-Alharbi/Kidney-Blood-Vessel-Segmentation/actions/workflows/lint.yml)
 
-**Teaching AI to find blood vessels in kidney tissue, even when the stain colour changes from lab to lab.**
+**U-Net with a ResNet-34 encoder, trained under four stain-augmentation strategies and evaluated for robustness to inter-laboratory stain variation.**
 
 - **Story site** (methods, every number explained): https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/
 - **Live lab** (run the models in your browser): https://kidney-blood-vessel-segmentation.streamlit.app/
@@ -45,7 +45,7 @@ python -m scripts.fetch_data          # Kaggle data into data/raw/ (needs Kaggle
 
 All statistics come from the committed `artifacts_v2/phase3_summary.json`. The lab and the site use the seed-42 models (`results_v2/checkpoints/` locally, the Hugging Face repo when deployed).
 
-`python main.py` is the grader entry point.
+`python main.py` is the main entry point.
 
 ## Repository structure
 
@@ -62,6 +62,6 @@ All statistics come from the committed `artifacts_v2/phase3_summary.json`. The l
 │   └── site/               # site template, CSS and JS
 ├── demo_assets/            # curated tiles and predictions for the deployed lab
 ├── docs/                   # generated story site (GitHub Pages)
-├── main.py                 # grader entry point
+├── main.py                 # main entry point
 └── environment.yml
 ```

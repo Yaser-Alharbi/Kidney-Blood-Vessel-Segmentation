@@ -103,13 +103,6 @@ def hed_shift(
     return rgb.astype(np.uint8)
 
 
-def hed_channels(img: np.ndarray) -> Dict[str, np.ndarray]:
-    """Split an RGB tile into H and E optical-density maps, [H, W] float64."""
-    h, w, _ = img.shape
-    hed = _rgb_to_od(img.reshape(-1, 3)) @ _HED_FROM_RGB
-    return {"H": hed[:, 0].reshape(h, w), "E": hed[:, 1].reshape(h, w)}
-
-
 def _macenko_stain_matrix(
     od: np.ndarray, beta: float, alpha_pct: float, fix_sign: bool = False
 ) -> Optional[np.ndarray]:

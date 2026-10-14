@@ -14,10 +14,7 @@ import altair as alt
 import numpy as np
 import pandas as pd
 
-# story site (plain-language headline)
-TITLE = "Teaching AI to Find Blood Vessels in Kidney Tissue"
-SUBTITLE = "...even when the stain colour changes from lab to lab"
-# live lab (technical headline)
+# live lab headline
 LAB_TITLE = "Blood Vessel Segmentation in Kidney Histology"
 LAB_SUBTITLE = (
     "U-Net with a ResNet-34 encoder, trained under four stain-augmentation strategies "
@@ -145,70 +142,12 @@ def diff_overlay(
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
-def to_gray_image(arr: np.ndarray) -> np.ndarray:
-    """Scale a float map to uint8 using its 1st-99th percentile range."""
-    lo, hi = np.percentile(arr, [1, 99])
-    scaled = (arr - lo) / max(hi - lo, 1e-8)
-    return (np.clip(scaled, 0, 1) * 255).astype(np.uint8)
-
-
 def _arm_scale(arms: Sequence[str]) -> alt.Scale:
     """Colour scale keyed by display label, in arm order."""
     return alt.Scale(
         domain=[arm_label(a) for a in arms],
         range=[arm_color(a) for a in arms],
     )
-
-
-def seed_strip_chart(
-    per_seed: Dict[str, Dict[str, float]],
-    cis: Dict[str, Tuple[float, float, float]],
-    arms: Sequence[str],
-    metric: str,
-) -> alt.Chart:
-    """One dot per seed per arm, with the cross-seed mean and 95% CI."""
-    dots = pd.DataFrame(
-        [
-            {"arm": arm_label(a), "seed": s, metric: v}
-            for a in arms
-            for s, v in per_seed[a].items()
-        ]
-    )
-    bars = pd.DataFrame(
-        [
-            {"arm": arm_label(a), "mean": m, "lo": lo, "hi": hi}
-            for a in arms
-            for (m, lo, hi) in [cis[a]]
-        ]
-    )
-    order = [arm_label(a) for a in arms]
-    y = alt.Y("arm:N", sort=order, title=None)
-    pts = (
-        alt.Chart(dots)
-        .mark_circle(size=70, opacity=0.75)
-        .encode(
-            x=alt.X(f"{metric}:Q", title=f"mean per-tile {metric} per training run"),
-            y=y,
-            yOffset=alt.YOffset("jitter:Q"),
-            color=alt.Color("arm:N", scale=_arm_scale(arms), legend=None),
-            tooltip=["arm", "seed", alt.Tooltip(f"{metric}:Q", format=".4f")],
-        )
-        .transform_calculate(jitter="random() * 20 - 10")
-    )
-    rule = alt.Chart(bars).mark_rule(strokeWidth=3, color="#888").encode(
-        x="lo:Q", x2="hi:Q", y=y
-    )
-    tick = alt.Chart(bars).mark_tick(thickness=3, size=26, color="#888").encode(
-        x="mean:Q",
-        y=y,
-        tooltip=[
-            "arm",
-            alt.Tooltip("mean:Q", format=".4f"),
-            alt.Tooltip("lo:Q", format=".4f"),
-            alt.Tooltip("hi:Q", format=".4f"),
-        ],
-    )
-    return (rule + tick + pts).properties(height=260)
 
 
 def sweep_chart(
