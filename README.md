@@ -4,9 +4,7 @@
 
 **U-Net with a ResNet-34 encoder, trained under four stain-augmentation strategies and evaluated for robustness to inter-laboratory stain variation.**
 
-- **Story site** (methods, every number explained): https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/
-- **Live lab** (run the models in your browser): https://kidney-blood-vessel-segmentation.streamlit.app/
-- **Model weights**: https://huggingface.co/Yaser-Alharbi/vessel-stain-lab-weights
+**[Demo](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/)** · **[Live lab](https://kidney-blood-vessel-segmentation.streamlit.app/)** · **[Model weights](https://huggingface.co/Yaser-Alharbi/vessel-stain-lab-weights)**
 
 Pathology labs stain tissue slightly differently, and a segmentation model trained on one lab's colours can lose accuracy on another's. This project trains the same U-Net (ResNet-34 encoder, ImageNet weights) four ways, changing only how stain colour is handled, and repeats each recipe with 20 random seeds (80 runs). Data: the [HuBMAP *Hacking the Human Vasculature*](https://www.kaggle.com/competitions/hubmap-hacking-the-human-vasculature) kidney tiles, with the split made by whole-slide image so no slide appears in more than one split.
 
@@ -23,9 +21,9 @@ Test set: 681 tiles from 2 held-out slides. Mean Dice across 20 runs per recipe,
 
 - **Stain jitter helps** (supported on test and on the expert-labelled validation slide).
 - **Macenko normalisation with a PAS-fitted reference** makes no clear difference on test and helps on the validation slide.
-- **Jitter + normalisation** is the best recipe on the validation slide; its test gain is small and does not hold up after correcting for three comparisons (see the site).
+- **Jitter + normalisation** is the best recipe on the validation slide; its test gain is small and does not hold up after correcting for three comparisons (see the [demo](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/)'s Methods tab).
 
-Test labels are auto-generated and noisy, so these scores compare recipes with each other; they are not absolute accuracy. The [story site](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/) explains every number, the statistics and the limitations.
+Test labels are auto-generated and noisy, so these scores compare recipes with each other; they are not absolute accuracy. The [demo](https://yaser-alharbi.github.io/Kidney-Blood-Vessel-Segmentation/) explains every number, the statistics and the limitations.
 
 ## Run it
 
@@ -40,10 +38,9 @@ python -m scripts.fetch_data          # Kaggle data into data/raw/ (needs Kaggle
 | Train and evaluate the 20-seed study (CUDA) | `python -m scripts.run_v2` (`--pilot` for seed 42 only) |
 | Cross-seed test report | `python -m scripts.report_v2` |
 | Live lab, locally | `streamlit run demo/app.py` |
-| Rebuild the story site into `docs/` | `python -m demo.build_site` (`--skip-images` re-renders text only) |
 | Refresh the lab's deployment files | `python -m demo.build_deploy` |
 
-All statistics come from the committed `artifacts_v2/phase3_summary.json`. The lab and the site use the seed-42 models (`results_v2/checkpoints/` locally, the Hugging Face repo when deployed).
+All statistics come from the committed `artifacts_v2/phase3_summary.json`. The live lab and the demo's example predictions use the seed-42 models (`results_v2/checkpoints/` locally, the Hugging Face repo when deployed).
 
 `python main.py` is the main entry point.
 
@@ -54,14 +51,14 @@ All statistics come from the committed `artifacts_v2/phase3_summary.json`. The l
 ├── src/                    # data (masks, splits, transforms), model, training, evaluation
 ├── scripts/                # 20-seed study runner, report, data download, figures
 ├── configs/rerun_v2.yaml   # the 20-seed study configuration
-├── artifacts_v2/           # committed results summary (every number on the site)
+├── artifacts_v2/           # committed results summary (every number in the demo)
 ├── demo/
 │   ├── app.py              # live lab (Streamlit)
-│   ├── build_site.py       # story site generator -> docs/
+│   ├── build_site.py       # old story-site generator (overwrites docs/index.html)
 │   ├── build_deploy.py     # writes demo_assets/ and demo/requirements.txt
-│   └── site/               # site template, CSS and JS
+│   └── site/               # old story-site template, CSS and JS
 ├── demo_assets/            # curated tiles and predictions for the deployed lab
-├── docs/                   # generated story site (GitHub Pages)
+├── docs/                   # demo page (GitHub Pages)
 ├── main.py                 # main entry point
 └── environment.yml
 ```
