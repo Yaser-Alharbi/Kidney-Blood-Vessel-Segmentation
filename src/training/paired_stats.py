@@ -1,8 +1,7 @@
 """Seed-level paired comparisons of arms against a baseline arm.
 
-Shared by `demo/build_site.py` and `scripts/report_v2.py` so the site and
-the markdown report always quote the same numbers. The unit of analysis is
-a run: its mean per-tile Dice on one split. Runs that share a seed share
+Used by `scripts/report_v2.py` for the markdown report. The unit of
+analysis is a run: its mean per-tile Dice on one split. Runs that share a seed share
 their initialisation, so every arm is compared with the baseline seed by
 seed:
 

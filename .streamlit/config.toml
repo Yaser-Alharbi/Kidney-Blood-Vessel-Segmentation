@@ -1,5 +1,4 @@
 # Live lab (demo/app.py). Community Cloud reads this file from the repo root.
-# Colours mirror the project site's dark-theme tokens (demo/site/style.css); keep the two in sync.
 
 [client]
 # Hide Streamlit's own developer/viewer menu items; only the About and

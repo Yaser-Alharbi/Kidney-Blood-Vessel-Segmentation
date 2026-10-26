@@ -54,9 +54,7 @@ All statistics come from the committed `artifacts_v2/phase3_summary.json`. The l
 ├── artifacts_v2/           # committed results summary (every number in the demo)
 ├── demo/
 │   ├── app.py              # live lab (Streamlit)
-│   ├── build_site.py       # old story-site generator (overwrites docs/index.html)
-│   ├── build_deploy.py     # writes demo_assets/ and demo/requirements.txt
-│   └── site/               # old story-site template, CSS and JS
+│   └── build_deploy.py     # writes demo_assets/ and demo/requirements.txt
 ├── demo_assets/            # curated tiles and predictions for the deployed lab
 ├── docs/                   # demo page (GitHub Pages)
 ├── main.py                 # main entry point
